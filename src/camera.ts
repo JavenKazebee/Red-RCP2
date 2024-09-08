@@ -4,7 +4,8 @@ export default class Camera {
     ws: WebSocket | null;
     name: string;
     ip: string;
-    callback: ((data: string) => any);
+    types: any;
+    callback: ((data: any) => void);
 
     constructor(name: string, ip: string) {
         this.ws = null;
@@ -36,7 +37,13 @@ export default class Camera {
             });
 
             this.ws?.on('message', (data) => {
-                this.callback(data.toString());
+                let json = JSON.parse(data.toString());
+                
+                if(json.type == "rcp_cur_types") {
+                    this.types = json;
+                }
+
+                this.callback(json);
             });
 
             this.ws?.on('close', (data) => {
@@ -45,7 +52,7 @@ export default class Camera {
         });
     }
 
-    onMessage(callback: (data: string) => any) {
+    onMessage(callback: (data: string) => void) {
         this.callback = callback;
     }
 
@@ -54,17 +61,17 @@ export default class Camera {
         console.log("Sent: " + message)
     }
 
-    sendConfig(client_name: string, client_version: string, strings_decoded: number = 0, json_minified: number = 1) {
+    sendConfig(client_name: string, client_version: string, strings_decoded = 0, json_minified = 1, include_cacheable_flags = 0, encoding_type = "legacy") {
         this.sendMessage(`
         {
             "type":"rcp_config",
-            "strings_decoded": 0,
-            "json_minified": 0,
-            "include_cacheable_flags": 0,
-            "encoding_type": "legacy",
+            "strings_decoded": ${strings_decoded},
+            "json_minified": ${json_minified},
+            "include_cacheable_flags": ${include_cacheable_flags},
+            "encoding_type": "${encoding_type}",
             "client":{
-                "name": "My Awesome Control App",
-                "version": "1.42"
+                "name": "${client_name}",
+                "version": "${client_version}"
             }
         }
         `);
