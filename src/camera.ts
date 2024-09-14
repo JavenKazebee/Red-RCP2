@@ -31,7 +31,6 @@ export default class Camera {
 
                 // Wait to receive confirmation of rcp_config, then resolve promise
                 this.ws?.once('message', (data) => {
-                    console.log("Config confirmed");
                     resolve(this);
                 });
             });
@@ -47,12 +46,11 @@ export default class Camera {
             });
 
             this.ws?.on('close', (data) => {
-                console.log("Camera disconnected");
             });
         });
     }
 
-    onMessage(callback: (data: string) => void) {
+    onMessage(callback: (data: any) => void) {
         this.callback = callback;
     }
 
@@ -89,6 +87,15 @@ export default class Camera {
         this.sendMessage(`
             {
                 "type": "rcp_get",
+                "id": "${id}"
+            }
+        `);
+    }
+
+    getList(id: string) {
+        this.sendMessage(`
+            {
+                "type": "rcp_get_list",
                 "id": "${id}"
             }
         `);
