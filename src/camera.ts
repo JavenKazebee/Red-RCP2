@@ -5,27 +5,34 @@ export default class Camera {
     name: string;
     ip: string;
     types: any;
-    callback: ((data: any) => void);
+    messageCallback: ((data: any) => void);
+    closeCallback: (() => void);
+    heartbeatTimeout: NodeJS.Timeout | null = null;
 
     constructor(name: string, ip: string) {
         this.ws = null;
         this.name = name;
         this.ip = ip;
-        this.callback = () => {};
+        this.messageCallback = () => {};
+        this.closeCallback = () => {};
     }
 
     async connect(): Promise<Camera> {
-        // Connect to the camera
-        this.ws = new WebSocket(`ws://${this.ip}:9998`);
 
         return new Promise((resolve, reject) => {
+            // Connect to the camera
+            this.ws = new WebSocket(`ws://${this.ip}:9998`, {handshakeTimeout: 1000});
+
             // Websocket setup
-            this.ws?.on('error', () => {
-                console.error;
-                reject();
+            this.ws?.on('error', (error) => {
+                console.error(error);
+                reject(error.message);
             });
             
             this.ws?.on('open', () => {
+                // Start heartbeat
+                this.heartbeat();
+
                 // Send rcp_config object
                 this.sendConfig(this.name, "1.0", 1, 0);
 
@@ -42,21 +49,27 @@ export default class Camera {
                     this.types = json;
                 }
 
-                this.callback(json);
+                this.heartbeatTimeout?.refresh(); // Refresh heartbeat when we receive a message
+                console.log("Message received, heartbeat refreshed");
+                this.messageCallback(json);
             });
 
             this.ws?.on('close', (data) => {
+                this.closeCallback();
             });
         });
     }
 
     onMessage(callback: (data: any) => void) {
-        this.callback = callback;
+        this.messageCallback = callback;
+    }
+
+    onClose(callback: () => void) {
+        this.closeCallback = callback;
     }
 
     sendMessage(message: string) {
         this.ws?.send(message);
-        console.log("Sent: " + message)
     }
 
     sendConfig(client_name: string, client_version: string, strings_decoded = 0, json_minified = 1, include_cacheable_flags = 0, encoding_type = "legacy") {
@@ -109,5 +122,22 @@ export default class Camera {
                 "value": ${value}
             }
         `);
+    }
+
+    private heartbeat() {
+        console.log("Heartbeat started");
+
+        // Every 3 seconds, send a heartbeat
+        const heartbeat = setInterval(() => {
+            console.log("Sending heartbeat");
+            this.getTypes();
+        }, 3000);
+
+        // After 5 seconds of no response, close the connection
+        this.heartbeatTimeout = setTimeout(() => {
+            console.log("No heartbeat received, closing connection");
+            this.ws?.terminate();
+            clearInterval(heartbeat);
+        }, 5000);
     }
 }
