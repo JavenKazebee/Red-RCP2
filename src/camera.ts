@@ -1,27 +1,25 @@
 import WebSocket from 'ws'
+import { Config, Get, GetList, RCPMessage, Set } from './types';
+import EventEmitter from 'eventemitter3';
 
-export default class Camera {
+export default class Camera extends EventEmitter {
     ws: WebSocket | null;
     name: string;
     ip: string;
-    types: any;
-    messageCallback: ((data: any) => void);
-    closeCallback: (() => void);
     heartbeatTimeout: NodeJS.Timeout | null = null;
 
     constructor(name: string, ip: string) {
+        super();
         this.ws = null;
         this.name = name;
         this.ip = ip;
-        this.messageCallback = () => {};
-        this.closeCallback = () => {};
     }
 
     async connect(): Promise<Camera> {
 
         return new Promise((resolve, reject) => {
             // Connect to the camera
-            this.ws = new WebSocket(`ws://${this.ip}:9998`, {handshakeTimeout: 1000});
+            this.ws = new WebSocket(`ws://${this.ip}:9998`, {handshakeTimeout: 10000});
 
             // Websocket setup
             this.ws?.on('error', (error) => {
@@ -34,7 +32,19 @@ export default class Camera {
                 this.heartbeat();
 
                 // Send rcp_config object
-                this.sendConfig(this.name, "1.0", 1, 0);
+                const config: Config = {
+                    type: "rcp_config",
+                    lang: "en",
+                    strings_decoded: 1,
+                    json_minified: 1,
+                    include_cacheable_flags: 0,
+                    encoding_type: "utf-8",
+                    client: {
+                        name: "red-rcp2",
+                        version: "1.0"
+                    }
+                }
+                this.send(config);
 
                 // Wait to receive confirmation of rcp_config, then resolve promise
                 this.ws?.once('message', (data) => {
@@ -44,100 +54,70 @@ export default class Camera {
 
             this.ws?.on('message', (data) => {
                 let json = JSON.parse(data.toString());
-                
-                if(json.type == "rcp_cur_types") {
-                    this.types = json;
-                }
 
                 this.heartbeatTimeout?.refresh(); // Refresh heartbeat when we receive a message
-                console.log("Message received, heartbeat refreshed");
-                this.messageCallback(json);
+                this.emit('message', json);
             });
 
             this.ws?.on('close', (data) => {
-                this.closeCallback();
+                this.emit('close');
             });
         });
     }
 
-    onMessage(callback: (data: any) => void) {
-        this.messageCallback = callback;
-    }
-
-    onClose(callback: () => void) {
-        this.closeCallback = callback;
-    }
-
-    sendMessage(message: string) {
-        this.ws?.send(message);
-    }
-
-    sendConfig(client_name: string, client_version: string, strings_decoded = 0, json_minified = 1, include_cacheable_flags = 0, encoding_type = "legacy") {
-        this.sendMessage(`
-        {
-            "type":"rcp_config",
-            "strings_decoded": ${strings_decoded},
-            "json_minified": ${json_minified},
-            "include_cacheable_flags": ${include_cacheable_flags},
-            "encoding_type": "${encoding_type}",
-            "client":{
-                "name": "${client_name}",
-                "version": "${client_version}"
-            }
-        }
-        `);
-    }
-
-    getTypes() {
-        this.sendMessage(`
-            {
-                "type": "rcp_get_types"
-            }
-        `);
+    send(message: RCPMessage) {
+        let str = JSON.stringify(message);
+        this.ws?.send(str);
     }
 
     get(id: string) {
-        this.sendMessage(`
-            {
-                "type": "rcp_get",
-                "id": "${id}"
-            }
-        `);
+        let message: Get = {
+            type: "rcp_get",
+            id: id
+        };
+
+        this.send(message);
     }
 
     getList(id: string) {
-        this.sendMessage(`
-            {
-                "type": "rcp_get_list",
-                "id": "${id}"
-            }
-        `);
+        let message: GetList = {
+            type: "rcp_get_list",
+            id: id
+        };
+
+        this.send(message);
     }
 
-    set(id: string, value: number) {
-        this.sendMessage(`
-            {
-                "type": "rcp_set",
-                "id": "${id}",
-                "value": ${value}
-            }
-        `);
+    set(id: string, value?: number, x?: number, y?: number, width?: number, height?: number, action?: number, argument?: string) {
+        const message: Set = {
+            type: 'rcp_set',
+            id,
+            value,
+            x,
+            y,
+            width,
+            height,
+            action,
+            argument,
+        };
+        
+        this.send(message);
     }
 
     private heartbeat() {
-        console.log("Heartbeat started");
-
         // Every 3 seconds, send a heartbeat
         const heartbeat = setInterval(() => {
-            console.log("Sending heartbeat");
-            this.getTypes();
+            this.send({
+                type: "rcp_get",
+                id: "get_types"
+            } as Get);
         }, 3000);
 
-        // After 5 seconds of no response, close the connection
+        // After 10 seconds of no response, close the connection
         this.heartbeatTimeout = setTimeout(() => {
             console.log("No heartbeat received, closing connection");
             this.ws?.terminate();
             clearInterval(heartbeat);
-        }, 5000);
+        }, 10000);
     }
 }
