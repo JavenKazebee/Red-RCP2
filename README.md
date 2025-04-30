@@ -1,2 +1,5 @@
 # Red RCP2
-Communicate with Red RCP2 cameras (Komodo and Komodo-X)
+Typescript library for communication with Red RCP2 cameras (Komodo and Komodo-X)
+
+# Building
+npm run build
