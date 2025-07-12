@@ -53,9 +53,10 @@ export default class Camera extends EventEmitter {
             });
 
             this.ws?.on('message', (data) => {
+                this.heartbeatTimeout?.refresh(); // Refresh heartbeat when we receive a message
+
                 let json = JSON.parse(data.toString());
 
-                this.heartbeatTimeout?.refresh(); // Refresh heartbeat when we receive a message
                 this.emit('message', json);
             });
 
@@ -88,7 +89,7 @@ export default class Camera extends EventEmitter {
         this.send(message);
     }
 
-    set(id: string, value?: number, x?: number, y?: number, width?: number, height?: number, action?: number, argument?: string) {
+    set(id: string, value?: number | string, x?: number, y?: number, width?: number, height?: number, action?: number, argument?: string) {
         const message: Set = {
             type: 'rcp_set',
             id,
@@ -107,11 +108,8 @@ export default class Camera extends EventEmitter {
     private heartbeat() {
         // Every 3 seconds, send a heartbeat
         const heartbeat = setInterval(() => {
-            this.send({
-                type: "rcp_get",
-                id: "get_types"
-            } as Get);
-        }, 3000);
+            this.get("APPLIED_CAMERA_LUT");
+        }, 5000);
 
         // After 10 seconds of no response, close the connection
         this.heartbeatTimeout = setTimeout(() => {

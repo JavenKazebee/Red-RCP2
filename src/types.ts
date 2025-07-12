@@ -400,7 +400,7 @@ export interface NotificationTimeout extends RCPMessage {
 export interface Set extends RCPMessage {
     type: "rcp_set",
     id: string,
-    value?: number,
+    value?: number | string,
     x?: number,
     y?: number,
     width?: number,
