@@ -50,6 +50,27 @@ export interface CurCamInfo extends RCPMessage {
     }
 }
 
+export interface CurCdl extends RCPMessage {
+    type: "rcp_cur_cdl",
+    id: string,
+    power: {
+        r: number,
+        g: number,
+        b: number,
+    },
+    slope: {
+        r: number,
+        g: number,
+        b: number,
+    },
+    offset: {
+        r: number,
+        g: number,
+        b: number,
+    }
+    saturation: number
+}
+
 export interface CurClipList extends RCPMessage {
     type: "rcp_cur_clip_list",
     clip_list_status: number,
