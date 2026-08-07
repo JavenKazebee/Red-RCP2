@@ -8,7 +8,7 @@ import {
 } from './types';
 import EventEmitter from 'eventemitter3';
 
-export default class Camera extends EventEmitter {
+export class Camera extends EventEmitter {
     ws: WebSocket | null;
     name: string;
     ip: string;
