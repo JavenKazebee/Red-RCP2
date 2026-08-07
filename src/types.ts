@@ -11,7 +11,7 @@ export interface CreatePreset extends RCPMessage {
 
 export interface Config extends RCPMessage {
     type: "rcp_config",
-    lang: string,
+    lang?: string,
     strings_decoded: number,
     json_minified: number,
     include_cacheable_flags: number,
@@ -150,11 +150,11 @@ export interface CurInt extends RCPMessage {
     id: string,
     cur: {
         val: number,
-        cacheable: number
+        cacheable: boolean
     },
     target: {
         val: number,
-        cacheable: number
+        cacheable: boolean
     },
     edit_info: CurIntEditInfo
 }
@@ -164,11 +164,11 @@ export interface CurUint extends RCPMessage {
     id: string,
     cur: {
         val: number,
-        cacheable: number
+        cacheable: boolean
     },
     target: {
         val: number,
-        cacheable: number
+        cacheable: boolean
     },
     edit_info: CurUintEditInfo
 }
@@ -357,7 +357,7 @@ export enum NodeType {
     NA2 = 16,
     DATE = 17,
     TIME = 18,
-    CREATE_PREST = 19
+    CREATE_PRESET = 19
 }
 
 export interface MenuStatus extends RCPMessage {

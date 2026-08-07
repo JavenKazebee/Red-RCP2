@@ -6,6 +6,7 @@ export default class Camera extends EventEmitter {
     ws: WebSocket | null;
     name: string;
     ip: string;
+    heartbeatInterval: NodeJS.Timeout | null = null;
     heartbeatTimeout: NodeJS.Timeout | null = null;
 
     constructor(name: string, ip: string) {
@@ -19,22 +20,29 @@ export default class Camera extends EventEmitter {
 
         return new Promise((resolve, reject) => {
             // Connect to the camera
-            this.ws = new WebSocket(`ws://${this.ip}:9998`, {handshakeTimeout: 10000});
+            const ws = new WebSocket(`ws://${this.ip}:9998`, {handshakeTimeout: 10000});
+            this.ws = ws;
+
+            let confirmed = false;
+            const confirmTimeout = setTimeout(() => {
+                reject(new Error('Timed out waiting for camera to confirm connection'));
+                ws.terminate();
+            }, 10000);
 
             // Websocket setup
-            this.ws?.on('error', (error) => {
+            ws.on('error', (error) => {
                 console.error(error);
+                clearTimeout(confirmTimeout);
                 reject(error.message);
             });
-            
-            this.ws?.on('open', () => {
+
+            ws.on('open', () => {
                 // Start heartbeat
-                this.heartbeat();
+                this.heartbeat(ws);
 
                 // Send rcp_config object
                 const config: Config = {
                     type: "rcp_config",
-                    lang: "en",
                     strings_decoded: 1,
                     json_minified: 1,
                     include_cacheable_flags: 0,
@@ -45,30 +53,58 @@ export default class Camera extends EventEmitter {
                     }
                 }
                 this.send(config);
-
-                // Wait to receive confirmation of rcp_config, then resolve promise
-                this.ws?.once('message', (data) => {
-                    resolve(this);
-                });
             });
 
-            this.ws?.on('message', (data) => {
+            ws.on('message', (data) => {
                 this.heartbeatTimeout?.refresh(); // Refresh heartbeat when we receive a message
 
-                let json = JSON.parse(data.toString());
+                let json;
+                try {
+                    json = JSON.parse(data.toString());
+                } catch (error) {
+                    console.error('Received malformed message from camera:', error);
+                    return;
+                }
 
                 this.emit('message', json);
+                if (!confirmed && json.type === 'rcp_config') {
+                    confirmed = true;
+                    clearTimeout(confirmTimeout);
+                    resolve(this);
+                }
             });
 
-            this.ws?.on('close', (data) => {
+            ws.on('close', () => {
+                this.stopHeartbeat();
+                this.ws = null;
                 this.emit('close');
             });
         });
     }
 
+    disconnect() {
+        this.ws?.terminate();
+    }
+
+    private stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        if (this.heartbeatTimeout) {
+            clearTimeout(this.heartbeatTimeout);
+            this.heartbeatTimeout = null;
+        }
+    }
+
     send(message: RCPMessage) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            throw new Error('Cannot send message: camera is not connected');
+        }
+
         let str = JSON.stringify(message);
-        this.ws?.send(str);
+        this.ws.send(str);
     }
 
     get(id: string) {
@@ -101,21 +137,24 @@ export default class Camera extends EventEmitter {
             action,
             argument,
         };
-        
+
         this.send(message);
     }
 
-    private heartbeat() {
-        // Every 3 seconds, send a heartbeat
-        const heartbeat = setInterval(() => {
-            this.get("APPLIED_CAMERA_LUT");
+    private heartbeat(ws: WebSocket) {
+        // Send a ping every 5 seconds
+        this.heartbeatInterval = setInterval(() => {
+            ws.ping();
         }, 5000);
+
+        ws.on('pong', () => {
+            this.heartbeatTimeout?.refresh();
+        });
 
         // After 10 seconds of no response, close the connection
         this.heartbeatTimeout = setTimeout(() => {
             console.log("No heartbeat received, closing connection");
-            this.ws?.terminate();
-            clearInterval(heartbeat);
+            ws.terminate();
         }, 10000);
     }
 }
