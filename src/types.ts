@@ -5,20 +5,31 @@ export interface RCPMessage {
 export interface CreatePreset extends RCPMessage {
     type: "rcp_create_preset",
     name: string,
-    description: string,
-    id: string[]
+    description?: string,
+    ids?: string[],
+    custom_lists?: string[],
+    force_overwrite?: boolean
+}
+
+export interface CreateScene extends RCPMessage {
+    type: "rcp_create_scene",
+    name?: string,
+    description?: string,
+    slot?: number,
+    force_overwrite?: boolean
 }
 
 export interface Config extends RCPMessage {
     type: "rcp_config",
-    lang?: string,
+    lang?: string, // only ever present on the camera's response; sending this is ignored by the camera
     strings_decoded: number,
     json_minified: number,
     include_cacheable_flags: number,
     encoding_type: string,
-    client: {
-        name: string,
-        version: string
+    client?: {
+        name?: string,
+        version?: string,
+        version_num?: number[]
     }
 }
 
@@ -47,7 +58,8 @@ export interface CurCamInfo extends RCPMessage {
         patch: number,
         build: number,
         dev: number
-    }
+    },
+    supported_objects: string[]
 }
 
 export interface CurCdl extends RCPMessage {
@@ -77,48 +89,111 @@ export interface CurClipList extends RCPMessage {
     clip_list: Clip[]
 }
 
-export interface Clip extends RCPMessage {
+export interface Clip {
     index: number,
     clip_name: string,
     clip_date: string,
     clip_time: string,
     sensor_fps: number,
+    sensor_fps_label: string,
+    sensor_fps_str: string,
+    sensor_fps_str_abbr: string,
+    edge_start_timecode_label: string,
     edge_start_timecode: string,
+    edge_end_timecode_label: string,
     edge_end_timecode: string,
+    tod_start_timecode_label: string,
     tod_start_timecode: string,
+    tod_end_timecode_label: string,
     tod_end_timecode: string,
-    has_r3d: number,
-    has_qt: number,
-    has_mxf: number,
+    has_r3d: boolean,
+    has_qt: boolean,
+    has_mxf: boolean,
+    duration_label: string,
     duration: string,
     record_mode: number,
+    compression_label: string,
     compression: string,
     compression_abbr: string,
+    format_label: string,
     format: string,
+    project_fps_label: string,
     project_fps_num: number,
     project_fps: string,
     project_fps_abbr: string,
+    iso_label: string,
     iso: string,
     iso_abbr: string,
+    kelvin_label: string,
     kelvin: string,
     kelvin_abbr: string,
+    tint_label: string,
     tint: string,
     tint_abbr: string,
-    num_frames: string,
-    camera_mode: number
-    sensor_fps_str: string,
-    sensor_fps_str_abbr: string,
+    num_frames_label: string,
+    num_frames: number,
+    camera_mode: number,
     drop_frame_display_mode: number,
     thumbnail_path: string,
+    display_clip_name_label: string,
     display_clip_name: string,
-    timecode_display: string,
-    can_playback: number
+    timecode_display: number,
+    can_playback: boolean,
+    phantom_track: boolean,
+    extended_highlights: boolean
+}
+
+export interface CurCustomList extends RCPMessage {
+    type: "rcp_cur_custom_list",
+    id: string,
+    list: {
+        cur: number,
+        data: {num?: number, str?: string, selected: boolean}[],
+    },
+    min_val?: number,
+    max_val?: number
 }
 
 export interface CurDefaultInt extends RCPMessage {
     type: "rcp_cur_default_int",
     id: string,
     default_val: number
+}
+
+export interface CurDefaultStr extends RCPMessage {
+    type: "rcp_cur_default_str",
+    id: string,
+    default_val: string
+}
+
+export interface CurFocusBoxes extends RCPMessage {
+    type: "rcp_cur_focus_boxes",
+    boxes: FocusBox[]
+}
+
+export interface FocusBox {
+    active: boolean,
+    id: string,
+    af_state_status: number,
+    type: number,
+    rect: {
+        x: number,
+        y: number,
+        width: number,
+        height: number
+    }
+}
+
+export interface CurImuData2 extends RCPMessage {
+    type: "rcp_cur_imu_data2",
+    ax: number,
+    ay: number,
+    az: number,
+    gx: number,
+    gy: number,
+    gz: number,
+    roll: number,
+    pitch: number
 }
 
 export interface CurHist extends RCPMessage {
@@ -128,7 +203,9 @@ export interface CurHist extends RCPMessage {
     green: number[],
     blue: number[],
     luma: number[],
+    gio: number[],
     num_cols: number,
+    num_gio_cols: number,
     max_val_per_col: number,
     bottom_clip: number,
     top_clip: number,
@@ -138,6 +215,8 @@ export interface CurHist extends RCPMessage {
     top_clip_g: number,
     bottom_clip_b: number,
     top_clip_b: number,
+    num_types: number,
+    types: number[],
     display: {
         str: string,
         abbr: string,
@@ -183,6 +262,7 @@ export interface CurIntEditInfo extends RCPMessage {
     step: number,
     prefix: string,
     suffix: string,
+    hint: string,
     cur: number,
     target: number
 }
@@ -197,6 +277,7 @@ export interface CurUintEditInfo extends RCPMessage {
     step: number,
     prefix: string,
     suffix: string,
+    hint: string,
     cur: number,
     target: number
 }
@@ -205,19 +286,46 @@ export interface CurKeyAction extends RCPMessage {
     type: "rcp_cur_key_action",
     id: string,
     action: number,
-    argument: string
+    argument: string,
+    info: KeyActionInfo
+}
+
+export interface KeyActionInfo {
+    style: number,
+    is_enabled: boolean,
+    trigger: number,
+    is_on?: boolean
+}
+
+export interface CurKeyActionInfo extends RCPMessage {
+    type: "rcp_cur_key_action_info",
+    action: number,
+    info: KeyActionInfo
 }
 
 export interface CurList extends RCPMessage {
     type: "rcp_cur_list",
     id: string,
-    send: string,
+    send: "int" | "uint" | "str" | null,
     min_val?: number,
     max_val?: number,
     list: {
         cur: number,
-        data: {num?: number, str?: string}[],
-    }
+        data: {num?: number, str?: string, disabled?: boolean}[],
+    },
+    has_custom_list?: boolean
+}
+
+export interface CurParameterInfo extends RCPMessage {
+    type: "rcp_cur_parameter_info",
+    id: string,
+    is_valid: boolean,
+    supported_objects: string[]
+}
+
+export interface CurParameters extends RCPMessage {
+    type: "rcp_cur_parameters",
+    parameters: string[]
 }
 
 export interface CurPoint extends RCPMessage {
@@ -231,7 +339,8 @@ export interface CurPresetOption extends RCPMessage {
     type: "rcp_cur_preset_option",
     id: string,
     option: number,
-    ids: string[]
+    ids: string[],
+    custom_lists: string[]
 }
 
 export interface CurRect extends RCPMessage {
@@ -253,6 +362,9 @@ export interface CurStatus extends RCPMessage {
 export interface CurStr extends RCPMessage {
     type: "rcp_cur_str",
     id: string,
+    cur?: {
+        val?: string
+    },
     display: {
         str: string,
         abbr: string,
@@ -267,7 +379,23 @@ export interface CurStrEditInfo extends RCPMessage {
     min_len: number,
     max_len: number,
     is_password: boolean,
-    allowed_characters: string
+    show_qr_code: boolean,
+    allowed_characters: string,
+    regex: string,
+    prefix: string,
+    suffix: string,
+    hint: string
+}
+
+export interface CurTypes extends RCPMessage {
+    type: "rcp_cur_types",
+    [typeName: string]: string | Record<string, number>
+}
+
+export interface Footer extends RCPMessage {
+    type: "rcp_footer",
+    sn: number,
+    crc32: number
 }
 
 export interface Get extends RCPMessage {
@@ -280,9 +408,22 @@ export interface GetClipList extends RCPMessage {
     members?: string[]
 }
 
+export interface GetCustomList extends RCPMessage {
+    type: "rcp_get_custom_list",
+    id: string
+}
+
 export interface GetDefault extends RCPMessage {
     type: "rcp_get_default",
     id: string
+}
+
+export interface GetFocusBoxes extends RCPMessage {
+    type: "rcp_get_focus_boxes"
+}
+
+export interface GetImuData extends RCPMessage {
+    type: "rcp_get_imu_data"
 }
 
 export interface GetLabel extends RCPMessage {
@@ -305,9 +446,27 @@ export interface GetMenuStatus extends RCPMessage {
     node_id: number
 }
 
+export interface GetParameterInfo extends RCPMessage {
+    type: "rcp_get_parameter_info",
+    id: string
+}
+
+export interface GetParameters extends RCPMessage {
+    type: "rcp_get_parameters"
+}
+
 export interface GetStatus extends RCPMessage {
     type: "rcp_get_status",
     id: string
+}
+
+export interface GetKeyActionInfo extends RCPMessage {
+    type: "rcp_get_key_action_info",
+    action: number
+}
+
+export interface GetTypes extends RCPMessage {
+    type: "rcp_get_types"
 }
 
 export interface Label extends RCPMessage {
@@ -324,13 +483,13 @@ export interface Menu extends RCPMessage {
     ancestor_list: MenuItem[]
 }
 
-export interface MenuItem extends RCPMessage {
+export interface MenuItem {
     node_type: NodeType,
     title: string,
     node_id?: number,
     is_enabled?: number,
     is_supported?: number,
-    id?: number,
+    id?: string,
     enable_value?: number,
     disable_value?: number
     action_label?: string,
@@ -363,6 +522,7 @@ export enum NodeType {
 export interface MenuStatus extends RCPMessage {
     type: "rcp_menu_status",
     node_id: number,
+    title: string,
     is_enabled: number,
     is_supported: number
 }
@@ -388,7 +548,7 @@ export interface Notification extends RCPMessage {
 export enum NotificationAction {
     OPEN = 0,
     UPDATE = 1,
-    ClOSE = 2
+    CLOSE = 2
 }
 
 export enum NotificationProgressType {
@@ -418,6 +578,13 @@ export interface NotificationTimeout extends RCPMessage {
     id: string
 }
 
+export interface Session extends RCPMessage {
+    type: "rcp_session",
+    status: "open" | "closed",
+    data?: string,
+    reason?: string
+}
+
 export interface Set extends RCPMessage {
     type: "rcp_set",
     id: string,
@@ -425,9 +592,48 @@ export interface Set extends RCPMessage {
     x?: number,
     y?: number,
     width?: number,
-    height?: number
+    height?: number,
     action?: number,
-    argument?: string
+    flag?: number,
+    held?: boolean,
+    argument?: string,
+    power?: {
+        r?: number,
+        g?: number,
+        b?: number
+    },
+    slope?: {
+        r?: number,
+        g?: number,
+        b?: number
+    },
+    offset?: {
+        r?: number,
+        g?: number,
+        b?: number
+    },
+    saturation?: number,
+    fstop?: number,
+    tstop?: number,
+    tstop_fraction?: number
+}
+
+export interface SetCustomList extends RCPMessage {
+    type: "rcp_set_custom_list",
+    id: string,
+    list: {
+        data: {num?: number, str?: string}[]
+    }
+}
+
+export interface SetFocusBox extends RCPMessage {
+    type: "rcp_set_focus_box",
+    id: string,
+    active?: boolean,
+    point?: {
+        x: number,
+        y: number
+    }
 }
 
 export interface SetRelative extends RCPMessage {
@@ -447,4 +653,3 @@ export interface Subscribe extends RCPMessage {
     id: string,
     on_off: boolean
 }
-

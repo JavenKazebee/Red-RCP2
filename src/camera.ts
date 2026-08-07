@@ -1,5 +1,11 @@
 import WebSocket from 'ws'
-import { Config, Get, GetList, RCPMessage, Set } from './types';
+import {
+    Config, CreatePreset, CreateScene, Get, GetClipList, GetCustomList, GetDefault,
+    GetFocusBoxes, GetImuData, GetKeyActionInfo, GetLabel, GetList, GetMenu, GetMenuStatus,
+    GetParameterInfo, GetParameters, GetStatus, GetTypes, NotificationGet, NotificationResponse,
+    NotificationTimeout, RCPMessage, Set, SetCustomList, SetFocusBox, SetListRelative,
+    SetRelative, Subscribe
+} from './types';
 import EventEmitter from 'eventemitter3';
 
 export default class Camera extends EventEmitter {
@@ -138,6 +144,121 @@ export default class Camera extends EventEmitter {
             argument,
         };
 
+        this.send(message);
+    }
+
+    getDefault(id: string) {
+        const message: GetDefault = { type: "rcp_get_default", id };
+        this.send(message);
+    }
+
+    getLabel(id: string) {
+        const message: GetLabel = { type: "rcp_get_label", id };
+        this.send(message);
+    }
+
+    getStatus(id: string) {
+        const message: GetStatus = { type: "rcp_get_status", id };
+        this.send(message);
+    }
+
+    getClipList(members?: string[]) {
+        const message: GetClipList = { type: "rcp_get_clip_list", members };
+        this.send(message);
+    }
+
+    getCustomList(id: string) {
+        const message: GetCustomList = { type: "rcp_get_custom_list", id };
+        this.send(message);
+    }
+
+    getFocusBoxes() {
+        const message: GetFocusBoxes = { type: "rcp_get_focus_boxes" };
+        this.send(message);
+    }
+
+    getImuData() {
+        const message: GetImuData = { type: "rcp_get_imu_data" };
+        this.send(message);
+    }
+
+    getMenu(nodeId: number) {
+        const message: GetMenu = { type: "rcp_get_menu", node_id: nodeId };
+        this.send(message);
+    }
+
+    getMenuStatus(nodeId: number) {
+        const message: GetMenuStatus = { type: "rcp_get_menu_status", node_id: nodeId };
+        this.send(message);
+    }
+
+    getParameterInfo(id: string) {
+        const message: GetParameterInfo = { type: "rcp_get_parameter_info", id };
+        this.send(message);
+    }
+
+    getParameters() {
+        const message: GetParameters = { type: "rcp_get_parameters" };
+        this.send(message);
+    }
+
+    getKeyActionInfo(action: number) {
+        const message: GetKeyActionInfo = { type: "rcp_get_key_action_info", action };
+        this.send(message);
+    }
+
+    getTypes() {
+        const message: GetTypes = { type: "rcp_get_types" };
+        this.send(message);
+    }
+
+    subscribe(id: string, onOff: boolean) {
+        const message: Subscribe = { type: "rcp_subscribe", id, on_off: onOff };
+        this.send(message);
+    }
+
+    setRelative(id: string, offset: number) {
+        const message: SetRelative = { type: "rcp_set_relative", id, offset };
+        this.send(message);
+    }
+
+    setListRelative(id: string, offset: number) {
+        const message: SetListRelative = { type: "rcp_set_list_relative", id, offset };
+        this.send(message);
+    }
+
+    setCustomList(id: string, data: {num?: number, str?: string}[]) {
+        const message: SetCustomList = { type: "rcp_set_custom_list", id, list: { data } };
+        this.send(message);
+    }
+
+    setFocusBox(id: string, options: {active?: boolean, point?: {x: number, y: number}} = {}) {
+        const message: SetFocusBox = { type: "rcp_set_focus_box", id, ...options };
+        this.send(message);
+    }
+
+    createPreset(name: string, options: {description?: string, ids?: string[], custom_lists?: string[], force_overwrite?: boolean} = {}) {
+        const message: CreatePreset = { type: "rcp_create_preset", name, ...options };
+        this.send(message);
+    }
+
+    createScene(options: {name?: string, description?: string, slot?: number, force_overwrite?: boolean} = {}) {
+        const message: CreateScene = { type: "rcp_create_scene", ...options };
+        this.send(message);
+    }
+
+    getNotification() {
+        const message: NotificationGet = { type: "rcp_notification_get" };
+        this.send(message);
+    }
+
+    respondToNotification(id: string, response: number) {
+        const message: NotificationResponse = { type: "rcp_notification_response", id, response };
+        this.send(message);
+    }
+
+    notificationTimeout(id: string) {
+        const message: NotificationTimeout = { type: "rcp_notification_timeout", id };
         this.send(message);
     }
 
