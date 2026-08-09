@@ -39,7 +39,7 @@ export class Camera extends EventEmitter {
             ws.on('error', (error) => {
                 console.error(error);
                 clearTimeout(confirmTimeout);
-                reject(error.message);
+                reject(error);
             });
 
             ws.on('open', () => {
